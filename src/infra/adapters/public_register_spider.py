@@ -3,6 +3,8 @@ import os
 import json
 from datetime import datetime
 
+from src.app.web.email import EmailUtils
+
 class PublicRegisterSpider(scrapy.Spider):
     name = 'public_register'
     start_urls = ['https://members.collegeofopticians.ca/Public-Register']
@@ -19,13 +21,22 @@ class PublicRegisterSpider(scrapy.Spider):
     
     def parse(self, response):
         # Set page size to 50
-        yield scrapy.FormRequest.from_response(
-            response,
-            formdata={
-                'ctl01$TemplateBody$WebPartManager1$gwpciNewQueryMenuCommon$ciNewQueryMenuCommon$ResultsGrid$Grid1$ctl00$ctl03$ctl01$PageSizeComboBox': '50'
-            },
-            callback=self.initiate_search
-        )
+        try:
+            yield scrapy.FormRequest.from_response(
+                response,
+                formdata={
+                    'ctl01$TemplateBody$WebPartManager1$gwpciNewQueryMenuCommon$ciNewQueryMenuCommon$ResultsGrid$Grid1$ctl00$ctl03$ctl01$PageSizeComboBox': '50'
+                },
+                callback=self.initiate_search
+            )
+        except Exception as e:
+            mail = EmailUtils()
+            error = json.dumps({"error": e.args})
+            mail.send_email(
+                    to='shokkamax2@gmail.com',
+                    subject="Scrapper encountered an error",
+                    html_content=error
+                )
 
     def initiate_search(self, response):
         # Click the "Find" button to initiate search
@@ -69,3 +80,14 @@ class PublicRegisterSpider(scrapy.Spider):
             )
         else:
             self.logger.info('No more pages')
+
+    def errback_httpbin(self, failure):
+        mail = EmailUtils()
+        error = json.dumps({"error": failure})
+        mail.send_email(
+                to='shokkamax2@gmail.com',
+                subject="Scrapper encountered an error",
+                html_content=error
+            )
+        
+    
